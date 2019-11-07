@@ -8,11 +8,12 @@
  * Definitions  
  */
 #define CONV_FACTOR 0.00812
-#define PulsePin 13
+const int PulsePin = 13;
+const int LedPin = 16;
 //#define PulsePin 5 // Input for the external interrupt to count with
 //unsigned long int avgValue;     //Store the average value of the sensor feedback
 //int i=0;
-const int ledPin =  2;
+
 //const int  PulsePin = 5;
 /* 
  * WiFi Settings 
@@ -61,8 +62,9 @@ PubSubClient client(broker, 1883, callback, wificlient);
 void setup()
 {
   pinMode(PulsePin, INPUT);
-  pinMode(ledPin, OUTPUT);
+  pinMode(LedPin, OUTPUT);
   digitalWrite(PulsePin,HIGH);
+  digitalWrite(LedPin,HIGH);
   attachInterrupt(digitalPinToInterrupt(PulsePin),countPulse,FALLING);
   Serial.begin(115200);
 //  delay(100);
@@ -104,7 +106,7 @@ void InitWiFi()
     delay(500);
     Serial.print(".");
   }
-  client.publish("/radiation/log","WiFi connected");
+//  client.publish("/radiation/log","WiFi connected");
   Serial.println("");
   Serial.println("WiFi connected");
   Serial.println("IP address: ");
@@ -154,9 +156,16 @@ void InitMQTT()
     abort();
   }
 }
-
+void callback(char* topic, byte* payload, unsigned int length) {
+  // handle message arrived
+  client.publish("/radiation/log","callback");
+  Serial.print((String) topic);
+  Serial.println(" is topic");
+  Serial.print((byte) payload[0]);
+  Serial.println(" is payload");
+}
 String PayloadConstructor() {
-  String payload = "{\"CPM\":";
+  String payload = "{\"radiationDose\":";
   payload += radiationDose;
 //  payload += ",\"µSv/h":";
 //  payload += uSv;
@@ -167,6 +176,8 @@ String PayloadConstructor() {
 //  payload += ",\"minuteHits\":";
 //  payload += minuteHits;
   payload += "}";
+  Serial.println("payload object: ");
+  Serial.println(payload);
 }
 
 void ClientConstructor() {
@@ -179,10 +190,12 @@ clientName += "ESP-";
 }
 void countPulse(){
   detachInterrupt(0);
-  count++;
-//  Serial.print("CPM increased: ");
+   count++;
+  digitalWrite(LedPin,LOW);
+  Serial.print("CPM increased: ");
   CountToCPM();
-//  Serial.println(CPM);
+  Serial.println(CPM);
+  digitalWrite(LedPin,HIGH);
   while(digitalRead(2)==0){
   } 
 }
@@ -207,12 +220,4 @@ void CPMtoDose() {
     Serial.println(" uSv/h");
     count = 0;
   }
-}
-void callback(char* topic, byte* payload, unsigned int length) {
-  // handle message arrived
-  client.publish("/radiation/log","callback");
-  Serial.print((String) topic);
-  Serial.println(" is topic");
-  Serial.print((byte) payload[0]);
-  Serial.println(" is payload");
 }

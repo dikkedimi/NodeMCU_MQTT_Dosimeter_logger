@@ -40,6 +40,9 @@ void setup()
 
   WiFiClient wclient = server.available();
   WiFiServer server = wclient.connected();
+
+  ClientConstructor();
+  PayloadConstructor();
   
   InitWiFi();
   InitMQTT();
@@ -209,4 +212,6 @@ void threadCurrentLogCallback()
   logs[0] = counts[0];
   counts[1] += counts[0];
   counts[0] = 0;
+
+  PayloadConstructor();
 }

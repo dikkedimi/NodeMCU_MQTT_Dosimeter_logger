@@ -163,7 +163,7 @@ String PayloadConstructor()
 {
   float _cpmTotal = (float)counts[1] / float (millis() / 1000) * 60; // dit is een inter/extrapolatie van het totaal
   float _cpmMinuteAverage = 0; // dit is het average van de afgelopen minuut
-  float _dose = _cpmTotal / INDEX; // dit is de tube index CPM / 151 = uSv/h
+  float _dose = _cpmTotal / tubeIndex; // dit is de tube index CPM / 151 = uSv/h
   
   for (int _i = ENTRIES - 1; _i > 0; _i--)
     _cpmMinuteAverage += logs[_i];

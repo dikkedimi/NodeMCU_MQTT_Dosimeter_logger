@@ -1,110 +1,97 @@
-/*
- * Includes
- */
 #include <PubSubClient.h>
 #include <ESP8266WiFi.h>
-//#include "FS.h" // FOR SPIFFS
-/*
- * Definitions  
- */
-#define CONV_FACTOR 0.00812
+#include <Thread.h>
+#include <StaticThreadController.h>
+
+#define tubeIndex 151
 #define PulsePin 13
-//#define PulsePin 5 // Input for the external interrupt to count with
-//unsigned long int avgValue;     //Store the average value of the sensor feedback
-//int i=0;
-const int ledPin =  2;
-//const int  PulsePin = 5;
-/* 
- * WiFi Settings 
- */
+#define ledPin 2
+
+#define LOG_PERIOD 10
+#define MAX_PERIOD 60
+#define ENTRIES (MAX_PERIOD / LOG_PERIOD)
+
 const char *ssid =  "SSID";
 const char *pass =  "PSK";
-//byte ip[]     = { 10, 0, 0, 150 }; // IP for this device
 
-/*
- * MQTT Settings
- */
-//char var = 0;
 char* topic = "/radiation";
 char state = 0;
-byte broker[] = { 10, 0, 0, 3 }; // IP Address of your MQTT Server
-
-
-/*
- * calculation vars
- */
-long count = 0;
-long CPM = 0;
-long timePrevious = 0;
-long timePreviousMeasure = 0;
-long countPrevious = 0;
-
-/*
- * Floats
- */
-float radiationDose = 0.0;
-/*
- * Strings
- */
+byte broker[] = { 10, 0, 0, 3 };
 String clientName;
-/*
- * Initialize a counter
- */
-//uint8_t counter[1];
-// Callback function header
 void callback(char* topic, byte* payload, unsigned int length);
+unsigned long counts[2] = {0, 0}, logs[ENTRIES];
+
 WiFiServer server(1883);
 WiFiClient wificlient;
 PubSubClient client(broker, 1883, callback, wificlient);
 
-//  attachInterrupt(digitalPinToInterrupt(PulsePin), IncreaseHitsPerMinute, RISING);
+Thread threadCurrentLog = Thread();
+StaticThreadController<1> threadController (&threadCurrentLog);
+
 void setup()
 {
+  for (int _i = 0; _i < ENTRIES; _i++)
+    logs[_i] = 0;
+  
+  Serial.begin(115200);
+
   pinMode(PulsePin, INPUT);
   pinMode(ledPin, OUTPUT);
-  digitalWrite(PulsePin,HIGH);
-  attachInterrupt(digitalPinToInterrupt(PulsePin),countPulse,FALLING);
-  Serial.begin(115200);
-//  delay(100);
+
   WiFiClient wclient = server.available();
   WiFiServer server = wclient.connected();
+  
   InitWiFi();
-  InitMQTT(); 
+  InitMQTT();
+
+  threadCurrentLog.enabled = true;
+  threadCurrentLog.setInterval(LOG_PERIOD * 1000);
+  threadCurrentLog.onRun(threadCurrentLogCallback);
+
+  attachInterrupt(digitalPinToInterrupt(PulsePin), countPulse, FALLING);
 }
+
 
 void loop()
 {
-
-//    if (!client.connected()) {
-//    InitWiFi();
-//    delay(100);
-//  }
+  threadController.run();
   client.loop();
 } 
+
 
 String macToStr(const uint8_t* mac)
 {
   String result;
-  for (int i = 0; i < 6; ++i) {
+  
+  for (int i = 0; i < 6; ++i)
+  {
     result += String(mac[i], 16);
-    if (i < 5)
-      result += ':';
+    
+    if (i < 5) result += ':';
   }
+  
   return result;
 }
+
 
 void InitWiFi()
 {
   client.publish("/radiation/log","Starting WiFi connection");
+  
   Serial.println("Starting WiFi connection "); 
   Serial.println();
+  
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, pass);
-  while (WiFi.status() != WL_CONNECTED) {
+  
+  while (WiFi.status() != WL_CONNECTED)
+  {
     delay(500);
     Serial.print(".");
   }
+  
   client.publish("/radiation/log","WiFi connected");
+  
   Serial.println("");
   Serial.println("WiFi connected");
   Serial.println("IP address: ");
@@ -112,107 +99,114 @@ void InitWiFi()
   Serial.println("");
   
   server.begin();
+  
   Serial.println("Webserver started");
+  
   client.publish("/radiation/log","Webserver started");
-  }
+}
+
 
 void InitMQTT()
 {
-  if (client.connect("arduinoClient")) {
+  if (client.connect("arduinoClient"))
+  {
     client.publish("/radiation/log","MQTT Connected");
     Serial.println("MQTT Connected");
     client.publish("/radiation/log","SwitchSense online!");
     client.subscribe("/home/out/radiation/#");  // Subscribe to all messages for this device
   }
+  
   Serial.print("Connecting to ");
   client.publish("/radiation/log","Connecting to ");
-//  Serial.print(broker);
-  client.publish("/radiation/log","as");
+
   Serial.print(" as ");
-  client.publish("/radiation/log","radiation");
+  client.publish("/radiation/log","as");
+  
   Serial.println(clientName);
-  if (client.connect((char*) clientName.c_str())) {
-    client.publish("/radiation/log","Connected to MQTT broker");
+  client.publish("/radiation/log","radiation");
+  
+  if (client.connect((char*) clientName.c_str()))
+  {
     Serial.println("Connected to MQTT broker");
-    client.publish("/radiation/log","topic is: ");
+    client.publish("/radiation/log","Connected to MQTT broker");
+    
     Serial.print("topic is: ");
     Serial.println(topic);
-    if (client.publish("/radiation/log", "hello from Babylawn!")) {
+    client.publish("/radiation/log","topic is: ");
+    
+    
+    if (client.publish("/radiation/log", "hello from Babylawn!"))
+    {
       Serial.println("Publish ok");
       client.publish("/radiation/log","Publish ok");
     }
-    else {
-      client.publish("/radiation/log","Publish failed!");
+    else
+    {
       Serial.println("Publish failed");
+      client.publish("/radiation/log","Publish failed!");
     }
   }
-  else {
+  else
+  {
     Serial.println("MQTT connect failed");
     client.publish("/radiation/log","MQTT connect failed");
+    
     Serial.println("Will reset and try again...");
     client.publish("/radiation/log","Will reset and try again...");
+    
     abort();
   }
 }
 
-String PayloadConstructor() {
+
+String PayloadConstructor()
+{
+  float _cpmTotal = (float)counts[1] / float (millis() / 1000) * 60; // dit is een inter/extrapolatie van het totaal
+  float _cpmMinuteAverage = 0; // dit is het average van de afgelopen minuut
+  float _dose = _cpmTotal / INDEX; // dit is de tube index CPM / 151 = uSv/h
+  
+  for (int _i = ENTRIES - 1; _i > 0; _i--)
+    _cpmMinuteAverage += logs[_i];
+
   String payload = "{\"CPM\":";
-  payload += radiationDose;
-//  payload += ",\"µSv/h":";
-//  payload += uSv;
-//  payload += ",\"lastcSv\":";
-//  payload += lastcSv;
-//  payload += ",\"minHolder\":";
-//  payload += minHolder;
-//  payload += ",\"minuteHits\":";
-//  payload += minuteHits;
-  payload += "}";
+         payload += (String)_cpmTotal;
+         payload += "}";
 }
 
-void ClientConstructor() {
-clientName += "ESP-";
+
+void ClientConstructor()
+{
+  clientName += "ESP-";
   uint8_t mac[6];
   WiFi.macAddress(mac);
   clientName += macToStr(mac);
   clientName += "-";
   clientName += String(micros() & 0xff, 16);
 }
-void countPulse(){
-  detachInterrupt(0);
-  count++;
-//  Serial.print("CPM increased: ");
-  CountToCPM();
-//  Serial.println(CPM);
-  while(digitalRead(2)==0){
-  } 
-}
-int CountToCPM(){
-      CPM = 6*count;
-      CPMtoDose();
-    }
-void CPMtoDose() {
-  if (millis()-timePreviousMeasure > 10000){
-    CountToCPM();
-    float radiationDose = CPM * CONV_FACTOR;
-    timePreviousMeasure = millis();
-////    Serial.print("CPM: "); 
-////    Serial.println(CPM);
-//    Serial.print(" * ");
-//    Serial.print(CONV_FACTOR);
-//    Serial.print(" = ");
-//    Serial.println(radiationDose);      
-//    Serial.print("CPM=");
-//    Serial.println(CPM);
-    Serial.print(radiationDose);
-    Serial.println(" uSv/h");
-    count = 0;
-  }
-}
-void callback(char* topic, byte* payload, unsigned int length) {
-  // handle message arrived
+
+
+void callback(char* topic, byte* payload, unsigned int length)
+{
   client.publish("/radiation/log","callback");
   Serial.print((String) topic);
   Serial.println(" is topic");
   Serial.print((byte) payload[0]);
   Serial.println(" is payload");
+}
+
+
+void countPulse()
+{
+  counts[0]++;
+}
+
+
+void threadCurrentLogCallback()
+{
+  for (int _i = ENTRIES - 1; _i > 0; _i--)
+    logs[_i] = logs[_i - 1];
+
+  logs[0] = counts[0];
+  counts[1] += counts[0];
+  counts[0] = 0;
 }

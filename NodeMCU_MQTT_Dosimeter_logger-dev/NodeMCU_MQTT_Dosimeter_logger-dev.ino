@@ -4,8 +4,8 @@
 #include <StaticThreadController.h>
 
 #define tubeIndex 151
-#define PulsePin 13
-#define ledPin 2
+#define PulsePin 13 //
+#define LedPin 16 // 
 
 #define LOG_PERIOD 10
 #define MAX_PERIOD 60
@@ -36,14 +36,12 @@ void setup()
   Serial.begin(115200);
 
   pinMode(PulsePin, INPUT);
-  pinMode(ledPin, OUTPUT);
+  pinMode(LedPin, OUTPUT);
+  digitalWrite(LedPin,LOW);
 
   WiFiClient wclient = server.available();
   WiFiServer server = wclient.connected();
-
   ClientConstructor();
-  PayloadConstructor();
-  
   InitWiFi();
   InitMQTT();
 
@@ -115,7 +113,7 @@ void InitMQTT()
   {
     client.publish("/radiation/log","MQTT Connected");
     Serial.println("MQTT Connected");
-    client.publish("/radiation/log","SwitchSense online!");
+    client.publish("/radiation/log","RadSense online!");
     client.subscribe("/home/out/radiation/#");  // Subscribe to all messages for this device
   }
   
@@ -142,22 +140,22 @@ void InitMQTT()
     {
       Serial.println("Publish ok");
       client.publish("/radiation/log","Publish ok");
+      return;
     }
     else
     {
       Serial.println("Publish failed");
-      client.publish("/radiation/log","Publish failed!");
+//      client.publish("/radiation/log","Publish failed!");
     }
   }
   else
   {
     Serial.println("MQTT connect failed");
-    client.publish("/radiation/log","MQTT connect failed");
-    
+//    client.publish("/radiation/log","MQTT connect failed");
     Serial.println("Will reset and try again...");
-    client.publish("/radiation/log","Will reset and try again...");
+//    client.publish("/radiation/log","Will reset and try again...");
     
-    abort();
+    return;
   }
 }
 
@@ -171,15 +169,28 @@ String PayloadConstructor()
   for (int _i = ENTRIES - 1; _i > 0; _i--)
     _cpmMinuteAverage += logs[_i];
 
-  String payload = "{\"CPM\":";
+  String payload = "{\"CPMTotal\":";
          payload += (String)_cpmTotal;
+         payload += ",\"cpmMinuteAverage\":";
+         payload += (String)_cpmMinuteAverage;
+         payload += ",\"dose\":";
+         payload += (String)_dose;
          payload += "}";
+//         Serial.println(_dose);
+         Serial.println(payload);
+         if(client.publish(topic, (char*) payload.c_str())) {
+          Serial.println(payload);
+          Serial.println("Publish OK!");
+         } else {
+          Serial.println("Publish FAIL!");
+          InitMQTT();
+         }
 }
 
 
 void ClientConstructor()
 {
-  clientName += "ESP-";
+  clientName = "ESP-";
   uint8_t mac[6];
   WiFi.macAddress(mac);
   clientName += macToStr(mac);
@@ -195,12 +206,15 @@ void callback(char* topic, byte* payload, unsigned int length)
   Serial.println(" is topic");
   Serial.print((byte) payload[0]);
   Serial.println(" is payload");
+
 }
 
 
 void countPulse()
 {
+  digitalWrite(LedPin,LOW);
   counts[0]++;
+  digitalWrite(LedPin,HIGH);
 }
 
 
@@ -212,6 +226,5 @@ void threadCurrentLogCallback()
   logs[0] = counts[0];
   counts[1] += counts[0];
   counts[0] = 0;
-
   PayloadConstructor();
 }

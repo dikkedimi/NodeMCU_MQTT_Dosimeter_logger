@@ -1,0 +1,10 @@
+Bridge mqtt:broker:3525be49 [ host="127.0.0.1", secure=false ]
+{
+   Thing mqtt:topic:radiation
+   {
+   Channels:
+     Type number : cpmTotal "cpmTotal: " [ stateTopic="/radiation", transformationPattern="JSONPATH:$.CPMTotal" ]
+     Type number : cpmMinuteAverage "cpmMinuteAverage: " [ stateTopic="/radiation", transformationPattern="JSONPATH:$.cpmMinuteAverage" ]
+     Type number : dose "RadDosage: " [ stateTopic="/radiation", transformationPattern="JSONPATH:$.dose" ]
+   }
+}

@@ -1,0 +1,22 @@
+sitemap Rads label="Rads"
+{
+	Frame label="Rads"
+	{
+	/* Text item=TemperatureSensor1TemperatureItem */
+	Text item=mqtt_topic_radiation_cpmTotal  label="Total: [%d CPM]"
+	Text item=mqtt_topic_radiation_cpmMinuteAverage  label="MinuteAverage: [%d CPM]"
+	Text item=mqtt_topic_radiation_dose  label="dose: [%.5f mSv/h]"
+	Switch  item=chart_period label="Periode: " icon=line mappings=[0="H", 1="D", 2="W", 3="M", 4="Y"]
+	Chart   item=gRadiationDose    period=h refresh=30000 visibility=[chart_period==0, chart_period=="Uninitialized"]
+	Chart   item=gRadiationDose    period=D refresh=30000 visibility=[chart_period==1]
+	Chart   item=gRadiationDose    period=W refresh=30000 visibility=[chart_period==2]
+ 	Chart   item=gRadiationDose    period=M refresh=30000 visibility=[chart_period==3]
+	Chart   item=gRadiationDose    period=Y refresh=30000 visibility=[chart_period==4]
+	Chart   item=gRadiationCPM    period=h refresh=30000 visibility=[chart_period==0, chart_period=="Uninitialized"]
+	Chart   item=gRadiationCPM    period=D refresh=30000 visibility=[chart_period==1]
+	Chart   item=gRadiationCPM    period=W refresh=30000 visibility=[chart_period==2]
+	Chart   item=gRadiationCPM    period=M refresh=30000 visibility=[chart_period==3]
+	Chart   item=gRadiationCPM    period=Y refresh=30000 visibility=[chart_period==4]
+
+	}
+}

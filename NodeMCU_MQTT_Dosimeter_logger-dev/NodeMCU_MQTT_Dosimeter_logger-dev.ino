@@ -4,8 +4,8 @@
 #include <StaticThreadController.h>
 
 #define tubeIndex 151
-#define PulsePin 13
-#define LedPin 16
+#define PulsePin 13 //
+#define LedPin 16 // 
 
 #define LOG_PERIOD 10
 #define MAX_PERIOD 60
@@ -37,7 +37,7 @@ void setup()
 
   pinMode(PulsePin, INPUT);
   pinMode(LedPin, OUTPUT);
-  digitalWrite(LedPin,HIGH);
+  digitalWrite(LedPin,LOW);
 
   WiFiClient wclient = server.available();
   WiFiServer server = wclient.connected();
@@ -155,7 +155,7 @@ void InitMQTT()
     Serial.println("Will reset and try again...");
 //    client.publish("/radiation/log","Will reset and try again...");
     
-    abort();
+    return;
   }
 }
 
@@ -183,6 +183,7 @@ String PayloadConstructor()
           Serial.println("Publish OK!");
          } else {
           Serial.println("Publish FAIL!");
+          InitMQTT();
          }
 }
 

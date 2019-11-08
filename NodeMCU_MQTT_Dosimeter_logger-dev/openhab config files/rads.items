@@ -1,0 +1,3 @@
+Number mqtt_topic_radiation_cpmTotal					 "cpmTotal: [%d CPM]"		   	 	<radiation_round>		(gRadiationCPM) 		 {channel="mqtt:topic:radiation:cpmTotal"}//[ "CurrentHumidity" ]
+Number mqtt_topic_radiation_cpmMinuteAverage					 "cpmMinuteAverage: [%d CPM]"		   	 	<radiation_round>		(gRadiationCPM) 		 {channel="mqtt:topic:radiation:cpmMinuteAverage"}//[ "CurrentHumidity" ]
+Number mqtt_topic_radiation_dose					 "dose: [%f.5 mSv/h]"		   	 	<radiation_triangular>		 (gRadiationDose)		 {channel="mqtt:topic:radiation:dose"}//[ "CurrentHumidity" ]
